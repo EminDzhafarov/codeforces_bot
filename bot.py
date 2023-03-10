@@ -1,8 +1,6 @@
 import logging
-import asyncio
 import sqlalchemy
 import kb
-import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from sqlalchemy.sql.expression import func
@@ -16,7 +14,7 @@ from db.models import Task
 logging.basicConfig(level=logging.INFO)
 
 storage = MemoryStorage()
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=API_TOKEN) #Телеграм токен
 dp = Dispatcher(bot=bot, storage=storage)
 
 engine = sqlalchemy.create_engine(DB_URL)
@@ -24,9 +22,10 @@ connection = engine.connect()
 
 Session = sessionmaker(bind=engine)
 
-
+#Набор значений сложности для проверки
 diffs = {800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000}
 
+#Стейты FSM
 class ClientStates(StatesGroup):
     get_diff = State()
     get_theme = State()
@@ -46,7 +45,7 @@ async def get_diff(message: types.Message, state: FSMContext):
 async def get_diff(message: types.Message, state: FSMContext):
     diff = message.text.strip()
     try:
-        if int(diff) in diffs:
+        if int(diff) in diffs: #Проверяем, есть ли значение в списке сложностей
             await state.update_data(diff=diff)
             await message.answer('Выберите тему:', reply_markup=kb.theme_kb)
             await ClientStates.result.set()
@@ -57,16 +56,21 @@ async def get_diff(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=ClientStates.result)
 async def get_theme(message: types.Message, state: FSMContext):
-    theme = message.text.strip()
+    theme = message.text.strip() #Берем тему из текста сообщения
     await state.update_data(theme=theme.lower())
+    #Открываем сессию БД
     with Session.begin() as session:
+        #Получаем полученные раннее данный из FSM
         data = await state.get_data()
+        #Делаем из словаря полученных данных SQL запрос
         result = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme ==  data['theme'])\
             .order_by(func.random()).limit(10)
+        #Проверяем, есть ли результат
         if session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme ==  data['theme'])\
             .order_by(func.random()).first() is None:
             await message.answer('Ничего не найдено :(', reply_markup=kb.return_kb)
         else:
+            #Выдаем результат
             await message.answer('Вот, что мне удалось найти:', \
                                  reply_markup=kb.return_kb)
             for t in result:
@@ -77,9 +81,9 @@ async def get_theme(message: types.Message, state: FSMContext):
                                      f'Решили: {t.solved}', \
                                      parse_mode='HTML', reply_markup=kb.return_kb)
 
-        session.close()
-    await state.finish()
-    await ClientStates.get_diff.set()
+        session.close() #Закрываем сессию
+    await state.finish() #Обнуляем FSM
+    await ClientStates.get_diff.set() #Ставим начальный стейт
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

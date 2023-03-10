@@ -14,10 +14,11 @@ Session = sessionmaker(bind=engine)
 def parser():
     """The function parses the codeforces.com pages"""
     options = webdriver.ChromeOptions()
-    options.add_argument('headless') #Turn on the mode without launching Chrome
+    options.add_argument('headless') #Парсинг без запуска хрома
     options.add_argument('--no-sandbox')
     browser = webdriver.Chrome(options=options)
     browser.get(f"https://codeforces.com/problemset/page/1?order=BY_SOLVED_DESC&locale=ru")
+    # Узнаем количество страниц
     last_page = browser.find_element(By.XPATH, '//*[@id="pageContent"]/div[3]/ul/li[6]/span/a')
     last_page = int(last_page.text)
 
@@ -25,23 +26,25 @@ def parser():
         browser.get(f"https://codeforces.com/problemset/page/{page_number}?order=BY_SOLVED_DESC&locale=ru")
         try:
             try:
-                for i in range(2, 102):
+                for i in range(2, 102): #На странице 100 задач
                     title = browser.find_element(By.XPATH, \
-                                                 f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[1]/a')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[1]/a')
                     number = browser.find_element(By.XPATH, \
-                                                 f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[1]/a')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[1]/a')
                     theme = browser.find_element(By.XPATH, \
-                                                  f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[2]')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[2]')
                     diff = browser.find_element(By.XPATH, \
-                                                 f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[4]/span')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[4]/span')
                     solved = browser.find_element(By.XPATH, \
-                                                f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[5]/a')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[5]/a')
                     link = browser.find_element(By.XPATH, \
-                                                f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[1]/a')
+                                            f'//*[@id="pageContent"]/div[2]/div[6]/table/tbody/tr[{i}]/td[2]/div[1]/a')
 
+                    #Запускаем сессию БД
                     session = Session()
+                    #Проверяем, есть ли задача в БД
                     exists = session.query(Task).filter(Task.number==number.text).scalar() is not None
-
+                    #Если нет, то добавляем
                     if not exists:
                         data = Task(
                             number=number.text,
@@ -53,7 +56,7 @@ def parser():
                             )
                         session.add(data)
                     session.commit()
-                    session.close()
+                    session.close() #Закрываем сессию
             except ValueError:
                 pass
         except NoSuchElementException:
