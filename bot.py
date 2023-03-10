@@ -62,11 +62,12 @@ async def get_theme(message: types.Message, state: FSMContext):
     with Session.begin() as session:
         #Получаем полученные раннее данный из FSM
         data = await state.get_data()
+        theme = data['theme']
         #Делаем из словаря полученных данных SQL запрос
-        result = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme ==  data['theme'])\
+        result = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%"))\
             .order_by(func.random()).limit(10)
         #Проверяем, есть ли результат
-        if session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme ==  data['theme'])\
+        if session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%"))\
             .order_by(func.random()).first() is None:
             await message.answer('Ничего не найдено :(', reply_markup=kb.return_kb)
         else:
