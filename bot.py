@@ -63,11 +63,15 @@ async def get_theme(message: types.Message, state: FSMContext):
         #Получаем полученные раннее данный из FSM
         data = await state.get_data()
         theme = data['theme']
-        #Делаем из словаря полученных данных SQL запрос
-        result = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%"))\
+        #Получаем рандомный контест
+        contest_query = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%"))\
+            .order_by(func.random()).first()
+        contest = contest_query.theme
+        #Делаем запрос по контесту и сложности
+        result = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme == contest) \
             .order_by(func.random()).limit(10)
         #Проверяем, есть ли результат
-        if session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%"))\
+        if session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme == contest)\
             .order_by(func.random()).first() is None:
             await message.answer('Ничего не найдено :(', reply_markup=kb.return_kb)
         else:
@@ -81,6 +85,9 @@ async def get_theme(message: types.Message, state: FSMContext):
                                      f'Сложность: {t.diff}\n'\
                                      f'Решили: {t.solved}', \
                                      parse_mode='HTML', reply_markup=kb.return_kb)
+        result2 = session.query(Task).filter(Task.diff == data['diff']).filter(Task.theme.like(f"%{theme}%")) \
+            .order_by(func.random()).limit(3)
+
 
         session.close() #Закрываем сессию
     await state.finish() #Обнуляем FSM
