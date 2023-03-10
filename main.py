@@ -1,25 +1,18 @@
-import os
 import threading
+import subprocess
 
-def Thread(my_funk):
-    def wrapper(*args, **kwargs):
-        my_thread = threading.Thread(target=my_funk, args=args, kwargs=kwargs)
-        my_thread.start()
+def script1():
+    subprocess.call(["Python3", "bot.py"])
 
-    return wrapper
+def script2():
+    subprocess.call(["Python3", "parser.py"])
 
-@Thread
-def script_1():
-    print('Запуск бота')
-    os.system("Python3 bot.py")
+t1 = threading.Thread(target=script1)
+t2 = threading.Thread(target=script2)
 
-@Thread
-def script_2():
-    print('Запуск парсера')
-    os.system("Python3 parser.py")
-
-t = threading.Thread(target=script_1)
-t2 = threading.Thread(target=script_2)
-
-t.start()
+t1.start()
 t2.start()
+
+t1.join()
+t2.join()
+
